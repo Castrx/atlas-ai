@@ -3,11 +3,17 @@ import request from "supertest";
 import { createApp } from "../../src/app";
 import { LlmError } from "../../src/errors/llm-error";
 import type { LlmProvider } from "../../src/llm/llm-provider";
+import type { ChatResponse } from "../../src/llm/chat-response.schema";
 
 describe("POST /api/chat", () => {
-  it("1. requisição válida: retorna 200 com a resposta do provider", async () => {
+  it("1. requisição válida: retorna 200 com o contrato estruturado do provider", async () => {
+    const structuredReply: ChatResponse = {
+      answer: "Olá! Como posso ajudar?",
+      intent: "general",
+      confidence: 0.95,
+    };
     const fakeProvider: LlmProvider = {
-      sendMessage: vi.fn().mockResolvedValue("Olá! Como posso ajudar?"),
+      sendMessage: vi.fn().mockResolvedValue(structuredReply),
     };
     const app = createApp({ llmProvider: fakeProvider });
 
@@ -16,7 +22,7 @@ describe("POST /api/chat", () => {
       .send({ message: "Olá" });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ message: "Olá! Como posso ajudar?" });
+    expect(response.body).toEqual(structuredReply);
     expect(fakeProvider.sendMessage).toHaveBeenCalledWith("Olá");
   });
 

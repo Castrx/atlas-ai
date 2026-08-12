@@ -25,7 +25,7 @@ export function createChatController(chatService: ChatService) {
 
       const reply = await chatService.sendMessage(parsed.data.message);
 
-      res.status(200).json({ message: reply });
+      res.status(200).json(reply);
     },
   };
 }

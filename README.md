@@ -2,7 +2,7 @@
 
 Assistente inteligente que utiliza uma LLM (inicialmente a OpenAI API) para responder perguntas sobre os dados do [Atlas ERP](../atlas-erp).
 
-> Status atual: **Fase 1 — MVP LLM**. Endpoint de chat funcional, integrado à OpenAI API através de uma abstração (`LlmProvider`).
+> Status atual: **Fase 2 — Structured Outputs e Prompt Engineering**. O endpoint de chat devolve uma resposta estruturada e validada (`answer`/`intent`/`confidence`), não texto livre.
 >
 > A especificação completa do projeto — objetivos, arquitetura, roadmap por fases e decisões arquiteturais — está em [`PROJECT_SPEC.md`](./PROJECT_SPEC.md). Este README cobre apenas como rodar o que já existe.
 
@@ -10,8 +10,8 @@ Assistente inteligente que utiliza uma LLM (inicialmente a OpenAI API) para resp
 
 - Node.js + TypeScript
 - Express
-- OpenAI SDK (via `LlmProvider` — nunca chamado fora de `src/llm/openai-provider.ts`)
-- Zod (validação de request e de variáveis de ambiente)
+- OpenAI SDK (via `LlmProvider` — nunca chamado fora de `src/llm/openai-provider.ts`), com Structured Outputs (`response_format: json_schema`)
+- Zod (validação de request, de variáveis de ambiente e da resposta estruturada da LLM)
 - Vitest + Supertest (testes; a OpenAI nunca é chamada de verdade em teste automatizado)
 
 ## Estrutura
@@ -22,14 +22,15 @@ src/
 ├── routes/       # definição de endpoints
 ├── controllers/  # lida com request/response, valida entrada com Zod
 ├── services/     # orquestração de negócio (ex.: chat.service)
-├── llm/          # abstração LlmProvider + implementação OpenAiProvider
+├── llm/          # abstração LlmProvider, OpenAiProvider e o contrato ChatResponse (Zod)
+├── prompts/      # prompts de sistema, usados só por OpenAiProvider
 ├── middleware/   # middlewares Express (ex.: tratamento de erro)
 ├── errors/       # classes de erro da aplicação
 ├── utils/        # utilitários (ex.: logger)
 ├── app.ts        # monta o Express app (composition root)
 └── server.ts     # entrypoint (sobe o servidor)
 tests/
-├── unit/         # testes unitários (ex.: chat.service com LlmProvider fake)
+├── unit/         # testes unitários (chat.service e OpenAiProvider, com fakes)
 └── integration/  # testes de integração via Supertest
 ```
 
@@ -63,7 +64,11 @@ curl -X POST http://localhost:3000/api/chat \
 Resposta esperada:
 
 ```json
-{ "message": "..." }
+{
+  "answer": "...",
+  "intent": "product_query | sales_query | customer_query | general | unsupported",
+  "confidence": 0.0
+}
 ```
 
 ## Scripts
