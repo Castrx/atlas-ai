@@ -6,10 +6,19 @@ import { createChatService } from "./services/chat.service";
 import { OpenAiProvider } from "./llm/openai-provider";
 import { errorHandler } from "./middleware/error-handler";
 import { createToolRegistry } from "./tools";
-import { NotImplementedAtlasErpClient } from "./integrations/atlas-erp/not-implemented-atlas-erp-client";
+import { HttpAtlasErpClient } from "./integrations/atlas-erp/http-atlas-erp-client";
+import { env } from "./config/env";
 import type { LlmProvider } from "./llm/llm-provider";
 import type { ToolRegistry } from "./tools/tool-registry";
 import type { AtlasErpClient } from "./integrations/atlas-erp/atlas-erp-client";
+
+function buildDefaultAtlasErpClient(): AtlasErpClient {
+  return new HttpAtlasErpClient({
+    baseUrl: env.ATLAS_ERP_BASE_URL,
+    email: env.ATLAS_ERP_SERVICE_EMAIL,
+    password: env.ATLAS_ERP_SERVICE_PASSWORD,
+  });
+}
 
 export interface CreateAppOptions {
   /**
@@ -26,8 +35,9 @@ export interface CreateAppOptions {
   /**
    * Permite injetar um AtlasErpClient (ex.: fake em testes). Ignorado se
    * toolRegistry for passado diretamente. Quando ambos são omitidos, usa
-   * NotImplementedAtlasErpClient — a integração real com o Atlas ERP é
-   * adiada para a Fase 3b (ver PROJECT_SPEC.md).
+   * HttpAtlasErpClient real, configurado a partir de
+   * ATLAS_ERP_BASE_URL/ATLAS_ERP_SERVICE_EMAIL/ATLAS_ERP_SERVICE_PASSWORD
+   * (ver ADR-022 no PROJECT_SPEC.md).
    */
   atlasErpClient?: AtlasErpClient;
 }
@@ -40,7 +50,7 @@ export interface CreateAppOptions {
 export function createApp(options: CreateAppOptions = {}) {
   const llmProvider = options.llmProvider ?? new OpenAiProvider();
   const toolRegistry =
-    options.toolRegistry ?? createToolRegistry(options.atlasErpClient ?? new NotImplementedAtlasErpClient());
+    options.toolRegistry ?? createToolRegistry(options.atlasErpClient ?? buildDefaultAtlasErpClient());
   const chatService = createChatService(llmProvider, toolRegistry);
   const chatController = createChatController(chatService);
 

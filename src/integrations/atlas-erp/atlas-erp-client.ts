@@ -31,7 +31,19 @@ export interface AtlasSale {
   customerId: number | null;
   customerName: string | null;
   total: number;
-  status: AtlasSaleStatus;
+  /**
+   * `null` quando o Atlas ERP não permite saber o status com segurança
+   * (ver ADR-023 no PROJECT_SPEC.md). O DTO real de venda do Atlas ERP
+   * (SaleResponse) não expõe `status` — HttpAtlasErpClient nunca inventa
+   * esse valor:
+   * - em getSales, todo resultado vem de GET /sales, que o próprio Atlas
+   *   ERP já filtra para status ACTIVE no servidor (SaleService.findAll) —
+   *   "ACTIVE" aqui é uma dedução provada pelo endpoint, não um chute.
+   * - em getSaleById, GET /sales/{id} devolve a venda independentemente do
+   *   status (não filtra) e o DTO não informa qual é — nesse caso o valor
+   *   é sempre `null` ("desconhecido"), nunca um valor inventado.
+   */
+  status: AtlasSaleStatus | null;
   createdAt: string;
 }
 
@@ -71,12 +83,12 @@ export interface GetSalesSummaryFilters {
  * desta interface — nunca de HTTP, de uma URL, ou de qualquer detalhe de
  * transporte diretamente.
  *
- * A implementação real (chamando a REST API do Atlas ERP por HTTP, com a
- * conta de serviço dedicada definida no plano da Fase 3) é adiada para a
- * Fase 3b, por instrução explícita. Nesta fase, o composition root usa
- * NotImplementedAtlasErpClient (ver arquivo irmão), que deixa toda a
- * orquestração (ToolRegistry, ChatService, tratamento de erro) completa e
- * testável, sem depender de uma integração externa ainda inexistente.
+ * A implementação real (HttpAtlasErpClient, ver arquivo irmão) chama a REST
+ * API do Atlas ERP por HTTP, com uma conta de serviço role USER (ver
+ * ADR-022 no PROJECT_SPEC.md). NotImplementedAtlasErpClient (também
+ * arquivo irmão) continua disponível como fallback explícito e controlado
+ * — não é mais o default do composition root, mas permanece útil para
+ * cenários em que a integração deve ficar deliberadamente desligada.
  */
 export interface AtlasErpClient {
   getProducts(filters: GetProductsFilters): Promise<AtlasProduct[]>;

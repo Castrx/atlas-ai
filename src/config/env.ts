@@ -15,6 +15,15 @@ const envSchema = z.object({
   // em um provider desabilitado.
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY é obrigatória"),
   OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+
+  // Integração real com o Atlas ERP (Fase 3b, ver ADR-022 no
+  // PROJECT_SPEC.md). Nenhuma tem default: sua ausência deve derrubar a
+  // inicialização (fail-fast), mesmo princípio já aplicado a
+  // OPENAI_API_KEY. A conta de serviço é role USER (menor privilégio
+  // suficiente para as 6 tools, todas somente leitura).
+  ATLAS_ERP_BASE_URL: z.string().url("ATLAS_ERP_BASE_URL deve ser uma URL válida"),
+  ATLAS_ERP_SERVICE_EMAIL: z.string().email("ATLAS_ERP_SERVICE_EMAIL deve ser um e-mail válido"),
+  ATLAS_ERP_SERVICE_PASSWORD: z.string().min(1, "ATLAS_ERP_SERVICE_PASSWORD é obrigatória"),
 });
 
 /**
