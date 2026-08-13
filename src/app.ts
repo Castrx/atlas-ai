@@ -5,7 +5,11 @@ import { createChatController } from "./controllers/chat.controller";
 import { createChatService } from "./services/chat.service";
 import { OpenAiProvider } from "./llm/openai-provider";
 import { errorHandler } from "./middleware/error-handler";
+import { createToolRegistry } from "./tools";
+import { NotImplementedAtlasErpClient } from "./integrations/atlas-erp/not-implemented-atlas-erp-client";
 import type { LlmProvider } from "./llm/llm-provider";
+import type { ToolRegistry } from "./tools/tool-registry";
+import type { AtlasErpClient } from "./integrations/atlas-erp/atlas-erp-client";
 
 export interface CreateAppOptions {
   /**
@@ -14,6 +18,18 @@ export interface CreateAppOptions {
    * aplicação que decide isso (composition root).
    */
   llmProvider?: LlmProvider;
+  /**
+   * Permite injetar um ToolRegistry já montado (ex.: com tools fake em
+   * testes). Tem prioridade sobre atlasErpClient, se ambos forem passados.
+   */
+  toolRegistry?: ToolRegistry;
+  /**
+   * Permite injetar um AtlasErpClient (ex.: fake em testes). Ignorado se
+   * toolRegistry for passado diretamente. Quando ambos são omitidos, usa
+   * NotImplementedAtlasErpClient — a integração real com o Atlas ERP é
+   * adiada para a Fase 3b (ver PROJECT_SPEC.md).
+   */
+  atlasErpClient?: AtlasErpClient;
 }
 
 /**
@@ -23,7 +39,9 @@ export interface CreateAppOptions {
  */
 export function createApp(options: CreateAppOptions = {}) {
   const llmProvider = options.llmProvider ?? new OpenAiProvider();
-  const chatService = createChatService(llmProvider);
+  const toolRegistry =
+    options.toolRegistry ?? createToolRegistry(options.atlasErpClient ?? new NotImplementedAtlasErpClient());
+  const chatService = createChatService(llmProvider, toolRegistry);
   const chatController = createChatController(chatService);
 
   const app = express();

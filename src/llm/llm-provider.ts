@@ -1,12 +1,15 @@
-import type { ChatResponse } from "./chat-response.schema";
+import type { LlmMessage, LlmTurnResult } from "./llm-message.types";
+import type { ToolDescriptor } from "../tools/tool.types";
 
 /**
  * Abstração mínima sobre um provedor de LLM (ver ADR-003 no PROJECT_SPEC.md).
  *
- * Desde a Fase 2, o contrato de retorno é estruturado (ChatResponse),
- * não texto livre — ver ADR-013. Ainda sem histórico, sem roles, sem
- * streaming, sem tools: isso pertence a fases futuras.
+ * Desde a Fase 3, converse() substitui o antigo sendMessage(string) — ver
+ * ADR-019. LlmProvider é responsável somente por traduzir entre o
+ * histórico de mensagens/tools (tipos próprios da aplicação) e a API real
+ * da LLM; nunca executa uma tool, nunca decide quando parar o loop de tool
+ * calling — isso é responsabilidade de ChatService (ver ADR-004).
  */
 export interface LlmProvider {
-  sendMessage(message: string): Promise<ChatResponse>;
+  converse(messages: LlmMessage[], tools: ToolDescriptor[]): Promise<LlmTurnResult>;
 }
