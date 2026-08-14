@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Favicon derivado de CompassMark (src/components/Header.tsx): mesma
+       marca, com fundo sólido para legibilidade em tamanhos pequenos. -->
+  <circle cx="12" cy="12" r="12" fill="#146b5c" />
+  <circle
+    cx="12"
+    cy="12"
+    r="9.25"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="12" cy="12" r="0.9" fill="#ffffff" />
+</svg>
