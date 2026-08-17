@@ -10,16 +10,21 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  // OPENAI_API_KEY nunca deve ter um valor default — sua ausência deve
+  // OPENROUTER_API_KEY nunca deve ter um valor default — sua ausência deve
   // derrubar a inicialização (fail-fast), nunca cair silenciosamente
   // em um provider desabilitado.
-  OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY é obrigatória"),
-  OPENAI_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  //
+  // Adaptação temporária (ver contexto da conversa): usamos a OpenRouter
+  // (API compatível com o padrão OpenAI) em vez da OpenAI diretamente,
+  // para evitar custo enquanto testamos com um modelo gratuito.
+  OPENROUTER_API_KEY: z.string().min(1, "OPENROUTER_API_KEY é obrigatória"),
+  OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  OPENROUTER_MODEL: z.string().min(1).default("google/gemma-4-26b-a4b-it:free"),
 
   // Integração real com o Atlas ERP (Fase 3b, ver ADR-022 no
   // PROJECT_SPEC.md). Nenhuma tem default: sua ausência deve derrubar a
   // inicialização (fail-fast), mesmo princípio já aplicado a
-  // OPENAI_API_KEY. A conta de serviço é role USER (menor privilégio
+  // OPENROUTER_API_KEY. A conta de serviço é role USER (menor privilégio
   // suficiente para as 6 tools, todas somente leitura).
   ATLAS_ERP_BASE_URL: z.string().url("ATLAS_ERP_BASE_URL deve ser uma URL válida"),
   ATLAS_ERP_SERVICE_EMAIL: z.string().email("ATLAS_ERP_SERVICE_EMAIL deve ser um e-mail válido"),

@@ -48,7 +48,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBeDefined();
-    expect(response.body.error.message).not.toContain("OPENAI_API_KEY");
+    expect(response.body.error.message).not.toContain("OPENROUTER_API_KEY");
     expect(fakeProvider.converse).not.toHaveBeenCalled();
   });
 
@@ -73,7 +73,7 @@ describe("POST /api/chat", () => {
       error: { message: "Não foi possível obter resposta da LLM no momento." },
     });
     // nunca deve vazar chave, stack trace ou nome de classe interna
-    expect(JSON.stringify(response.body)).not.toMatch(/sk-|OPENAI_API_KEY|stack/i);
+    expect(JSON.stringify(response.body)).not.toMatch(/sk-|OPENROUTER_API_KEY|stack/i);
   });
 
   it("3b. erro inesperado (não-AppError) do provider: também não expõe detalhes internos", async () => {

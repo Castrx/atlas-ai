@@ -9,7 +9,11 @@ import type { LlmMessage, LlmTurnResult } from "./llm-message.types";
 import type { ToolDescriptor } from "../tools/tool.types";
 
 function buildDefaultClient(): OpenAI {
-  return new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  // Adaptação temporária: aponta o SDK da OpenAI para a OpenRouter (API
+  // compatível com o padrão OpenAI), para evitar custo enquanto testamos
+  // com um modelo gratuito. Ver contexto no PROJECT_SPEC.md quando
+  // formalizado.
+  return new OpenAI({ apiKey: env.OPENROUTER_API_KEY, baseURL: env.OPENROUTER_BASE_URL });
 }
 
 function toOpenAiTools(tools: ToolDescriptor[]): OpenAI.ChatCompletionTool[] {
@@ -64,7 +68,7 @@ function toOpenAiMessages(messages: LlmMessage[]): OpenAI.ChatCompletionMessageP
  * Implementação concreta de LlmProvider usando a OpenAI API.
  *
  * Único arquivo do projeto que importa o SDK da OpenAI e lê
- * OPENAI_API_KEY — nenhum outro módulo deve fazer isso (ver
+ * OPENROUTER_API_KEY — nenhum outro módulo deve fazer isso (ver
  * PROJECT_SPEC.md, Seção 10 — Segurança).
  *
  * Responsabilidade estritamente de tradução/comunicação (ver ADR-004 e
@@ -116,7 +120,7 @@ export class OpenAiProvider implements LlmProvider {
   private async callOpenAi(messages: LlmMessage[], tools: ToolDescriptor[]) {
     try {
       return await this.client.chat.completions.create({
-        model: env.OPENAI_MODEL,
+        model: env.OPENROUTER_MODEL,
         messages: [
           { role: "system", content: CHAT_SYSTEM_PROMPT },
           ...toOpenAiMessages(messages),
