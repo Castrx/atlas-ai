@@ -7,7 +7,7 @@ import { z } from "zod";
  * (LLM, integrações, etc.) forem implementadas.
  */
 const envSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(3000),
+  PORT: z.coerce.number().int().positive().default(3001),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   // OPENROUTER_API_KEY nunca deve ter um valor default — sua ausência deve

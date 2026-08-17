@@ -2,7 +2,7 @@
 
 > **Este documento é a fonte de verdade do Atlas AI.** Qualquer nova sessão de trabalho (humana ou de agente, incluindo uma nova sessão do Claude Code sem memória de conversas anteriores) deve conseguir entender contexto, objetivos, arquitetura, limites e roadmap **apenas lendo este arquivo**.
 
-Status: **Fase 0 — Especificação.** Nenhum código de aplicação foi escrito ainda.
+Status: **Fases 0–3 concluídas.** Backend (Express/TypeScript), frontend (React), Structured Outputs, Tool Calling e integração real com o Atlas ERP estão implementados e funcionais, com CI (GitHub Actions) rodando build e testes automatizados a cada push/PR. O provedor de LLM em uso é a OpenRouter (`google/gemma-4-26b-a4b-it:free`), API compatível com o padrão OpenAI — ver ADR-024. Fases 4 (MCP), 5 (RAG) e 6 (Segurança) ainda não foram iniciadas.
 
 ---
 
@@ -141,37 +141,43 @@ Responsabilidades:
 
 ## 8. ROADMAP
 
-### Fase 0 — Especificação (atual)
+### Fase 0 — Especificação (concluída)
 Definir arquitetura, stack, responsabilidades, limites, segurança e critérios de conclusão.
 **Critério de conclusão:** este documento (`PROJECT_SPEC.md`) aprovado.
 
-### Fase 1 — MVP LLM
+### Fase 1 — MVP LLM (concluída)
 Aplicação mínima capaz de: receber uma mensagem → enviar à OpenAI API → receber resposta → retornar ao usuário via API REST própria.
 
 Inclui: variáveis de ambiente, tratamento de erros, validação de entrada, testes.
 
 **Critério de conclusão:** um usuário consegue enviar uma pergunta e receber uma resposta da LLM através da API do Atlas AI.
 
-### Fase 2 — Structured Outputs e Prompt Engineering
+> O provedor de LLM em uso passou de OpenAI direta para OpenRouter (API compatível com o padrão OpenAI, modelo `google/gemma-4-26b-a4b-it:free`) — ver ADR-024. A abstração `LlmProvider` do ADR-003 absorveu essa troca sem mudança de arquitetura.
+
+### Fase 2 — Structured Outputs e Prompt Engineering (concluída)
 Prompts estruturados, respostas estruturadas (schemas), validação de respostas, técnicas de prompt engineering — evitar depender de texto livre quando a aplicação precisa de dados estruturados.
 
-### Fase 3 — Tool Calling
+### Fase 3 — Tool Calling (concluída, incluindo integração real com o Atlas ERP)
 Ferramentas controladas pelo backend, ex.: `getProducts`, `getLowStockProducts`, `getCustomers`, `getSales`, `getSaleById`, `getSalesSummary`.
 
 Fluxo: Usuário → AI Backend → LLM → Tool Call → Backend valida → Atlas ERP API → Resultado → LLM → Resposta.
 
 A LLM não terá acesso direto ao banco.
 
-### Fase 4 — MCP
+> A integração HTTP real com o Atlas ERP (autenticação via conta de serviço `USER`, `HttpAtlasErpClient`) está implementada e testada ponta a ponta — ver ADR-018, ADR-022 e ADR-023. Um frontend web (React) e um pipeline de CI (GitHub Actions, build + testes a cada push/PR) também foram adicionados como parte da consolidação desta etapa, sem alterar a arquitetura em camadas definida na Seção 6.
+
+### Fase 4 — MCP (não iniciada)
 Avaliar e só implementar Model Context Protocol **se houver benefício real e justificativa arquitetural/educacional** — não por popularidade da tecnologia.
 
-### Fase 5 — RAG
+### Fase 5 — RAG (não iniciada)
 Embeddings, vector store, retrieval, documentação do Atlas como contexto — permitir que o sistema use conhecimento externo/contextual antes de responder.
 
-### Fase 6 — Segurança
+### Fase 6 — Segurança (não iniciada)
 Avaliar e implementar: prompt injection, validação de tool calls, autenticação, autorização, RBAC, proteção de dados, limites de ferramentas, controle de acesso, rate limiting quando necessário, proteção contra abuso.
 
 **A LLM nunca deve receber autoridade irrestrita sobre o sistema.**
+
+> Os limites estruturais permanentes da Seção 10 (nunca acesso direto a banco, tools explícitas e validadas, segredos só em env vars) já estão em vigor desde a Fase 1. O hardening específico desta fase (rate limiting, headers HTTP de segurança, revisão formal de prompt injection) ainda não foi executado — ver ADR-009.
 
 ---
 
@@ -402,5 +408,17 @@ O Atlas AI será considerado concluído quando, simultaneamente:
 **Contexto:** Decisão explícita do usuário para a Fase 3b: "não inventar campos que o Atlas ERP não fornece" e "se uma tool não puder representar exatamente sua informação, adaptar o contrato da tool para refletir a API real e documentar a limitação"; e especificamente "não expor status se a API real não fornecer esse dado. Não inventar valores."
 **Alternativas consideradas:** manter `AtlasSale.status` obrigatório e assumir `"ACTIVE"` também em `getSaleById` (rejeitado — a única inferência seria um chute: `GET /sales/{id}` devolve a venda independentemente do status real, então "ACTIVE" poderia estar errado para uma venda cancelada); inferir o status em `getSaleById` cruzando com a lista de `GET /sales` (venda presente na lista ACTIVE = ACTIVE, ausente = CANCELED por eliminação) — tecnicamente válido (só duas categorias possíveis), mas rejeitado por exigir uma segunda chamada HTTP a cada `getSaleById` e por depender implicitamente de um detalhe de implementação do Atlas ERP (`SaleService.findAll` filtrar por `ACTIVE`) que pode mudar sem aviso; usar `GET /dashboard.lowStockProducts` em vez de filtrar `GET /products` (rejeitado — trunca em 5 itens e devolve um formato mais pobre, sem necessidade dado que `/products` já não pagina).
 **Justificativa:** Cada adaptação documentada aqui é uma dedução válida a partir do comportamento real e observado do Atlas ERP (código-fonte em `C:\Users\gabri\atlas-erp`), nunca um valor arbitrário — mantém o mesmo princípio já registrado no ADR-014/ADR-020 ("nunca inventar/confiar cegamente"), agora aplicado à integração externa em vez de à LLM. Tornar `AtlasSale.status` nullable é a única mudança de tipo necessária para representar honestamente "não sabemos" em vez de forçar um valor — TypeScript não permite devolver algo fora de `AtlasSaleStatus` num campo não-nulo, então a alternativa a alterar o tipo seria inventar um valor, o que a decisão do usuário proíbe explicitamente.
+
+### ADR-024 — Latência observada com OpenRouter (`google/gemma-4-26b-a4b-it:free`): variância de fila/provider, não gargalo do Atlas ERP
+
+**Decisão:** A latência alta e variável observada nas duas chamadas ao LLM por requisição (Tool Calling e Structured Output) é registrada como limitação conhecida do provider/modalidade `:free` atual — OpenRouter, modelo `google/gemma-4-26b-a4b-it:free` — e não como gargalo do Atlas ERP nem da orquestração do Atlas AI (`ChatService`/`OpenAiProvider`). Qualquer otimização futura de latência deve priorizar troca de provider/modelo/infra de inferência antes de reescrever a integração com o Atlas ERP.
+**Contexto:** Medição end-to-end de uma requisição real (`"Quais produtos estão com estoque baixo?"`, Atlas ERP real em execução, tools reais), com instrumentação temporária fora do código de produção (removida após a medição):
+- Etapa 1 (Tool Calling): variável, de poucos segundos até dezenas de segundos entre execuções.
+- Execução da tool no Atlas ERP (login + `GET /products`): ~1,65 s no teste de referência.
+- Etapa 2 (Structured Output): também variável, com picos de dezenas de segundos.
+- Uma execução de referência totalizou ~30,1 s ponta a ponta.
+
+**Alternativas consideradas (hipóteses de causa, testadas e descartadas):** tamanho do payload como causa da variância — etapa 1 ≈ 4,5 KB / ~999 tokens de input, etapa 2 ≈ 5,2 KB / ~1.171 tokens de input, diferença de ~16–17%, insuficiente para explicar variações de segundos a dezenas de segundos (rejeitada); `response_format` (Structured Outputs, modo strict) como causa — enviado de forma idêntica nas duas chamadas, mesmo schema e mesmos 6 tools (rejeitada, sem diferencial entre etapas); volume de tokens de saída como causa — etapa 1 gerou 10 tokens de completion, etapa 2 gerou 113, e em uma das execuções medidas a etapa 2 (11x mais tokens de saída) foi *mais rápida* que a etapa 1 (rejeitada, contradiz relação proporcional); parâmetro de sampling/`reasoning`/`max_tokens` configurado pela aplicação como causa — nenhum desses parâmetros é definido por `OpenAiProvider` em nenhuma das duas chamadas, ambas usam os defaults do provider (rejeitada, nenhuma configuração da aplicação explica a assimetria); diferença de provider/upstream entre etapas como causa — mesmo provider/upstream foi observado servindo as duas chamadas da mesma requisição (rejeitada); em retries do mesmo request, sem qualquer mudança de payload, já se observou grande variação de latência — evidência adicional contra causas ligadas a tamanho/conteúdo do payload.
+**Justificativa:** Não há evidência, nos testes realizados, de que o tamanho do payload ou o uso de `response_format` estrito seja a causa da variância de latência observada, nem de que algum parâmetro de sampling/`reasoning`/`max_tokens` configurado pela aplicação explique a diferença entre as duas chamadas — nenhum dos dois lados do request muda esses parâmetros. A hipótese mais sustentada pelas evidências é variabilidade de fila/capacidade do upstream/provider compartilhado da modalidade `:free` do OpenRouter, fora do controle do código do Atlas AI. Como consequência: latência alta é tratada como limitação conhecida do ambiente gratuito atual, não como defeito da integração com o Atlas ERP nem da orquestração do tool calling (ADR-019/ADR-021) — nenhuma mudança de código é motivada por este achado.
 
 ---
