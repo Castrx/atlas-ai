@@ -74,7 +74,8 @@ Nenhuma tool de escrita existe — a LLM nunca cria, altera nem apaga dado nenhu
 - O resultado de uma tool é sempre tratado como dado, nunca como instrução (defesa contra prompt injection indireta).
 - Segredos (chave da OpenRouter, credenciais do Atlas ERP) ficam só em variáveis de ambiente, nunca hardcoded nem versionados — `.env` está no `.gitignore`.
 - Erros nunca expõem stack trace, chave, senha, JWT ou detalhe interno ao cliente (middleware de erro centralizado, ADR-007).
-- **Pendente:** o hardening específico de exposição pública (rate limiting, headers HTTP de segurança como `helmet`, revisão formal de prompt injection) está reservado para a Fase 6 do roadmap e **ainda não foi implementado** (ADR-009) — assim como MCP (Fase 4) e RAG (Fase 5), avaliados no `PROJECT_SPEC.md` mas fora do escopo atual.
+- Rate limiting em memória por IP (padrão: 30 req/60s, configurável), CORS explícito por allowlist de uma origem (sem configurar, nenhum header de CORS é enviado) e headers HTTP de segurança (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy: default-src 'none'`, sem `X-Powered-By`) — sem dependência nova, ver ADR-025.
+- **Fora de escopo, deliberadamente:** autenticação/autorização/RBAC do próprio endpoint `POST /api/chat` (distinto da autenticação Atlas AI → Atlas ERP, essa sim implementada — ADR-022); o Atlas AI é um assistente single-tenant de demonstração, sem modelo de usuário próprio (ver ADR-025) — assim como MCP (Fase 4) e RAG (Fase 5), avaliados no `PROJECT_SPEC.md` mas fora do escopo atual.
 
 ## Como executar o Atlas ERP localmente
 
@@ -138,6 +139,8 @@ Ver [`.env.example`](./.env.example) (backend) e [`frontend/.env.example`](./fro
 | `OPENROUTER_MODEL` | Não (default `google/gemma-4-26b-a4b-it:free`) | Modelo usado nas chamadas |
 | `ATLAS_ERP_BASE_URL` | **Sim** | URL base da API do Atlas ERP (sem barra final) |
 | `ATLAS_ERP_SERVICE_EMAIL` / `ATLAS_ERP_SERVICE_PASSWORD` | **Sim** | Credenciais da conta de serviço role `USER` do Atlas ERP |
+| `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX_REQUESTS` | Não (default `60000` / `30`) | Janela e limite do rate limiting em `/api` (ADR-025) |
+| `CORS_ALLOWED_ORIGIN` | Não (default: nenhum header de CORS) | Origem única liberada para CORS, ex.: `http://localhost:5173` (ADR-025) |
 
 **Frontend:** `VITE_USE_MOCK_API` e `VITE_API_BASE_URL` — ver seção seguinte.
 
@@ -151,7 +154,7 @@ O frontend alterna entre as duas implementações de `ChatApi` via `frontend/.en
 ## Testes e build
 
 ```bash
-npm test          # Vitest — 66 testes (unit + integração via Supertest)
+npm test          # Vitest — 76 testes (unit + integração via Supertest)
 npm run build     # compila o backend (TypeScript) para dist/
 ```
 
@@ -166,7 +169,12 @@ npm run build     # tsc -b && vite build
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) roda a cada `push`/`pull_request`: `npm ci` → `npm test` → `npm run build` do backend. Não há deploy automatizado nem cobertura de CI para o frontend ainda.
+GitHub Actions (`.github/workflows/ci.yml`) roda a cada `push`/`pull_request`, em dois jobs paralelos:
+
+- **backend:** `npm ci` → `npm test` → `npm run build`.
+- **frontend:** `npm ci` → `npm run build` (`tsc -b && vite build`). O frontend não tem suíte de testes automatizada nem lint configurado ainda — o build é, hoje, a única verificação automatizável que existe para ele; nada foi inventado para preencher essa lacuna.
+
+Não há deploy automatizado.
 
 ## Limitação conhecida: latência do modelo gratuito
 
