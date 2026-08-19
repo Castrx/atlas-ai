@@ -29,6 +29,25 @@ const envSchema = z.object({
   ATLAS_ERP_BASE_URL: z.string().url("ATLAS_ERP_BASE_URL deve ser uma URL válida"),
   ATLAS_ERP_SERVICE_EMAIL: z.string().email("ATLAS_ERP_SERVICE_EMAIL deve ser um e-mail válido"),
   ATLAS_ERP_SERVICE_PASSWORD: z.string().min(1, "ATLAS_ERP_SERVICE_PASSWORD é obrigatória"),
+
+  // Hardening de segurança da Fase 6 (ver ADR-025 no PROJECT_SPEC.md).
+  // Todas opcionais com default seguro — nenhuma muda o comportamento de
+  // quem já tinha um .env configurado antes desta revisão.
+
+  // Rate limiting em memória, por IP, aplicado só em /api (ver
+  // src/middleware/rate-limit.ts). Default: 30 requisições / 60s.
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30),
+
+  // Origem exata liberada para CORS (ver src/middleware/cors.ts). Sem
+  // valor definido (default), nenhum header de CORS é enviado — só
+  // requisições same-origin funcionam a partir de um navegador, o mesmo
+  // comportamento que a aplicação já tinha antes desta revisão.
+  CORS_ALLOWED_ORIGIN: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value ? value : undefined)),
 });
 
 /**

@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  backend:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,4 +25,29 @@ jobs:
         run: npm test
 
       - name: Build
+        run: npm run build
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # O frontend não tem suíte de testes automatizada nem lint configurado
+      # ainda (ver README.md) — o build (tsc -b && vite build) é, hoje, a
+      # única verificação automatizável que existe para ele.
+      - name: Build
+        working-directory: frontend
         run: npm run build

@@ -5,6 +5,9 @@ import { createChatController } from "./controllers/chat.controller";
 import { createChatService } from "./services/chat.service";
 import { OpenAiProvider } from "./llm/openai-provider";
 import { errorHandler } from "./middleware/error-handler";
+import { securityHeaders } from "./middleware/security-headers";
+import { createCors } from "./middleware/cors";
+import { createRateLimiter } from "./middleware/rate-limit";
 import { createToolRegistry } from "./tools";
 import { HttpAtlasErpClient } from "./integrations/atlas-erp/http-atlas-erp-client";
 import { env } from "./config/env";
@@ -56,10 +59,16 @@ export function createApp(options: CreateAppOptions = {}) {
 
   const app = express();
 
+  // Não anunciar o framework HTTP usado (ver ADR-025 no PROJECT_SPEC.md).
+  app.disable("x-powered-by");
+
+  app.use(securityHeaders);
+  app.use(createCors());
   app.use(express.json());
 
   app.use(healthRouter);
-  app.use("/api", createChatRouter(chatController));
+  // Rate limiting só no endpoint que de fato aciona a LLM/Atlas ERP.
+  app.use("/api", createRateLimiter(), createChatRouter(chatController));
 
   // Middleware de erro deve ser o último registrado.
   app.use(errorHandler);
